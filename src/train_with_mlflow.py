@@ -16,7 +16,8 @@ from feature_engineering import (
     create_cyclical_features,
     create_lag_features,
     create_rolling_features,
-    create_ema_features
+    create_ema_features,
+    create_expanding_features
 )
 
 # =====================================
@@ -78,6 +79,9 @@ df = create_rolling_features(df)
 
 print("Creating EMA features...")
 df = create_ema_features(df)
+
+print("Creating expanding features...")
+df=create_expanding_features(df)
 
 print("Dropping NaNs...")
 df = df.dropna()
@@ -225,7 +229,11 @@ with mlflow.start_run():
     )
 
     model.save_model(
-        "models/catboost_demand_forecaster.cbm"
+        "models/final_catboost_model.cbm"
+    )
+
+    print(
+        "\nFinal model saved successfully!"
     )
 
     # =====================================

@@ -11,40 +11,26 @@ from feature_engineering import (
     create_cyclical_features,
     create_lag_features,
     create_rolling_features,
-    create_ema_features
+    create_ema_features,
+    create_expanding_features
 )
-
-# =====================================
-# LOAD DATA
-# =====================================
 
 print("Loading data...")
 
 df = load_data("data/raw/train.csv")
 
-# =====================================
-# FEATURE ENGINEERING
-# =====================================
-
 print("Creating features...")
 
 df = create_date_features(df)
-
 df = create_cyclical_features(df)
-
 df = create_lag_features(df)
-
 df = create_rolling_features(df)
-
 df = create_ema_features(df)
+df = create_expanding_features(df)
 
 df = df.dropna()
 
 print("Final Shape:", df.shape)
-
-# =====================================
-# FEATURES
-# =====================================
 
 features = [
     col
@@ -52,56 +38,25 @@ features = [
     if col not in ["date", "sales"]
 ]
 
-# =====================================
-# WALK FORWARD SPLITS
-# =====================================
-
 folds = [
-    (
-        "2013-01-31",
-        "2014-12-31",
-        "2015-01-01",
-        "2015-12-31"
-    ),
-    (
-        "2013-01-31",
-        "2015-12-31",
-        "2016-01-01",
-        "2016-12-31"
-    ),
-    (
-        "2013-01-31",
-        "2016-12-31",
-        "2017-01-01",
-        "2017-12-31"
-    )
+    ("2015-01-01", "2016-01-01"),
+    ("2016-01-01", "2017-01-01"),
+    ("2017-01-01", "2018-01-01")
 ]
 
 mae_scores = []
 
-# =====================================
-# WALK FORWARD VALIDATION
-# =====================================
-
-for fold_num, (
-    train_start,
-    train_end,
-    valid_start,
-    valid_end
-) in enumerate(folds, start=1):
+for fold_num, (valid_start, valid_end) in enumerate(folds, start=1):
 
     print("\n" + "=" * 50)
     print(f"FOLD {fold_num}")
     print("=" * 50)
 
-    train_df = df[
-        (df["date"] >= train_start)
-        & (df["date"] <= train_end)
-    ]
+    train_df = df[df["date"] < valid_start]
 
     valid_df = df[
         (df["date"] >= valid_start)
-        & (df["date"] <= valid_end)
+        & (df["date"] < valid_end)
     ]
 
     print("Train Shape:", train_df.shape)
@@ -124,73 +79,35 @@ for fold_num, (
         verbose=False
     )
 
-    model.fit(
-        X_train,
-        y_train
-    )
+    model.fit(X_train, y_train)
 
-    pred_log = model.predict(X_valid)
+    preds_log = model.predict(X_valid)
 
-    predictions = np.expm1(pred_log)
+    preds = np.expm1(preds_log)
 
     mae = mean_absolute_error(
         y_valid,
-        predictions
+        preds
     )
 
     mae_scores.append(mae)
 
-    print(
-        f"Fold {fold_num} MAE: {mae:.4f}"
-    )
-
-# =====================================
-# FINAL RESULTS
-# =====================================
+    print(f"Fold {fold_num} MAE: {mae:.4f}")
 
 print("\n")
 print("=" * 50)
 print("FINAL RESULTS")
 print("=" * 50)
 
-for idx, score in enumerate(
-    mae_scores,
-    start=1
-):
-    print(
-        f"Fold {idx}: {score:.4f}"
-    )
+print("MAE Scores:")
 
-avg_mae = np.mean(mae_scores)
-std_mae = np.std(mae_scores)
+for i, score in enumerate(mae_scores, start=1):
+    print(f"Fold {i}: {score:.4f}")
 
-print()
 print(
-    f"Average MAE: {avg_mae:.4f}"
+    f"\nAverage MAE: {np.mean(mae_scores):.4f}"
 )
 
 print(
-    f"Std Dev: {std_mae:.4f}"
-)
-
-# =====================================
-# INTERPRETATION
-# =====================================
-
-print("\n")
-print("=" * 50)
-print("INTERPRETATION")
-print("=" * 50)
-
-if std_mae < 0.30:
-    print(
-        "Model is stable across folds."
-    )
-else:
-    print(
-        "Model performance varies noticeably across time."
-    )
-
-print(
-    f"Trusted Walk-Forward MAE: {avg_mae:.4f}"
+    f"Std Dev: {np.std(mae_scores):.4f}"
 )
