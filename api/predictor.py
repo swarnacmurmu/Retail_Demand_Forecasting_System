@@ -1,39 +1,30 @@
-from pydantic import BaseModel
+import numpy as np
+
+from catboost import CatBoostRegressor
+
+from api.feature_builder import build_features
 
 
-class ForecastRequest(BaseModel):
+MODEL_PATH = "models/final_catboost_model.cbm"
 
-    store: int
-    item: int
+model = CatBoostRegressor()
+model.load_model(MODEL_PATH)
 
-    year: int
-    month: int
-    day: int
 
-    weekday: int
-    weekofyear: int
-    is_weekend: int
+def predict_sales(
+    store: int,
+    item: int,
+    forecast_date: str
+):
 
-    month_sin: float
-    month_cos: float
+    features = build_features(
+        store=store,
+        item=item,
+        forecast_date=forecast_date
+    )
 
-    weekday_sin: float
-    weekday_cos: float
+    pred_log = model.predict(features)
 
-    sales_lag_1: float
-    sales_lag_7: float
-    sales_lag_14: float
-    sales_lag_30: float
-    sales_lag_60: float
-    sales_lag_90: float
+    pred = np.expm1(pred_log)
 
-    rolling_mean_7: float
-    rolling_mean_30: float
-
-    rolling_std_7: float
-    rolling_std_30: float
-
-    ema_7: float
-    ema_30: float
-
-    expanding_mean: float
+    return float(pred[0])
