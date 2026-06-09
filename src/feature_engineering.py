@@ -44,12 +44,23 @@ def create_lag_features(df):
         ["store", "item", "date"]
     )
 
-    for lag in [1, 7, 14, 30]:
+    group = df.groupby(
+        ["store", "item"]
+    )["sales"]
 
-        df[f"sales_lag_{lag}"] = (
-            df.groupby(["store", "item"])["sales"]
-            .shift(lag)
-        )
+    df["sales_lag_1"] = group.shift(1)
+
+    df["sales_lag_7"] = group.shift(7)
+
+    df["sales_lag_14"] = group.shift(14)
+
+    df["sales_lag_30"] = group.shift(30)
+
+    # NEW FEATURES
+
+    df["sales_lag_60"] = group.shift(60)
+
+    df["sales_lag_90"] = group.shift(90)
 
     return df
 
@@ -116,6 +127,26 @@ def create_ema_features(df):
         lambda x:
         x.shift(1)
          .ewm(span=30, adjust=False)
+         .mean()
+    )
+
+    return df
+
+
+def create_expanding_features(df):
+
+    df = df.sort_values(
+        ["store", "item", "date"]
+    )
+
+    grouped = df.groupby(
+        ["store", "item"]
+    )["sales"]
+
+    df["expanding_mean"] = grouped.transform(
+        lambda x:
+        x.shift(1)
+         .expanding()
          .mean()
     )
 
